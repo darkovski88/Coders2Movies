@@ -1,4 +1,4 @@
-package com.coders.two.movies.presentation
+package com.coders.two.movies
 
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -30,7 +30,7 @@ class MainActivity : ComponentActivity() {
                 val navController: NavHostController = rememberNavController()
 
                 Scaffold(
-                    modifier = Modifier.fillMaxSize()
+                    modifier = Modifier.Companion.fillMaxSize()
                 ) { innerPadding ->
 
                     NavHost(
@@ -39,7 +39,7 @@ class MainActivity : ComponentActivity() {
                     ) {
                         composable("main") {
                             MainScreen(
-                                modifier = Modifier.padding(innerPadding),
+                                modifier = Modifier.Companion.padding(innerPadding),
                                 onItemClicked = { movie ->
                                     navController.currentBackStackEntry
                                         ?.savedStateHandle
@@ -58,7 +58,7 @@ class MainActivity : ComponentActivity() {
                             if (movie != null) {
                                 DetailsScreen(
                                     movie = movie,
-                                    modifier = Modifier.padding(innerPadding)
+                                    modifier = Modifier.Companion.padding(innerPadding)
                                 )
                             }
                         }

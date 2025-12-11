@@ -19,6 +19,7 @@ data class MovieDto(
     val releaseDate: String?,
     @Json(name = "vote_average")
     val voteAverage: Double,
+    val isFavorite: Boolean = false
 ) : Parcelable {
     @IgnoredOnParcel
     val displayTitle = title ?: name ?: ""

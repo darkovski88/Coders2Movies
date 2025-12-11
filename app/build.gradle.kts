@@ -83,6 +83,16 @@ dependencies {
     //Coil
     implementation(libs.coil.compose)
 
+    //Room
+    implementation(libs.room.runtime)
+    implementation(libs.room.ktx)
+
+    // KSP compiler
+    ksp(libs.room.ksp)
+
+    // Optional but useful for testing
+    testImplementation(libs.room.testing)
+
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))

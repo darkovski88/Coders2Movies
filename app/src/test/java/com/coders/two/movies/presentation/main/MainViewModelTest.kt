@@ -1,6 +1,7 @@
 package com.coders.two.movies.presentation.main
 
 import app.cash.turbine.test
+import com.coders.two.movies.FakeFavoritesRepo
 import com.coders.two.movies.FakePopularRepo
 import com.coders.two.movies.FakeSearchRepo
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -16,6 +17,7 @@ import org.junit.Test
 class MainViewModelTest {
 
     private lateinit var vm: MainViewModel
+    private lateinit var fakeFavoritesRepo: FakeFavoritesRepo
     private lateinit var fakePopularRepo: FakePopularRepo
     private lateinit var fakeSearchRepo: FakeSearchRepo
 
@@ -25,11 +27,13 @@ class MainViewModelTest {
     fun setup() {
         fakePopularRepo = FakePopularRepo()
         fakeSearchRepo = FakeSearchRepo()
+        fakeFavoritesRepo = FakeFavoritesRepo()
 
         vm = MainViewModel(
             popularMoviesRepo = fakePopularRepo,
             searchRepo = fakeSearchRepo,
-            dispatcher = dispatcher
+            dispatcher = dispatcher,
+            favoritesRepo = fakeFavoritesRepo
         )
     }
 
@@ -100,4 +104,21 @@ class MainViewModelTest {
         }
     }
 
+    @Test
+    fun `toggling favorites updates UI state`() = runTest(dispatcher) {
+        vm.onIntent(MainIntent.LoadInitial)
+        advanceUntilIdle()
+
+        val movie = vm.state.movies.first()
+
+        vm.onIntent(MainIntent.ToggleFavorite(movie))
+        advanceUntilIdle()
+
+        assertTrue(vm.state.movies.first().isFavorite)
+
+        vm.onIntent(MainIntent.ToggleFavorite(movie))
+        advanceUntilIdle()
+
+        assertFalse(vm.state.movies.first().isFavorite)
+    }
 }

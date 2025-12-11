@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material3.CircularProgressIndicator
@@ -32,11 +33,13 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.coders.two.movies.R
 import com.coders.two.movies.data.model.MovieDto
+import com.coders.two.movies.presentation.ui.MovieRow
 import kotlinx.coroutines.flow.distinctUntilChanged
 
 private const val ItemsLoadThreshold = 5
@@ -93,7 +96,15 @@ internal fun MainScreen(
             modifier = Modifier.fillMaxSize()
         ) {
             items(items = state.movies) { movie ->
-                MovieRow(movie = movie) { onItemClicked(it) }
+                MovieRow(
+                    movie = movie,
+                    onFavorite = {
+                        viewModel.onIntent(MainIntent.ToggleFavorite(it))
+                    }) {
+                    onItemClicked(
+                        it
+                    )
+                }
             }
         }
 
@@ -123,6 +134,8 @@ fun SearchTopBar(
     query: String,
     onQueryChange: (String) -> Unit
 ) {
+    val focusManager = LocalFocusManager.current
+
     Column(
         modifier = Modifier
             .fillMaxWidth()
@@ -139,6 +152,11 @@ fun SearchTopBar(
             },
             placeholder = { Text(stringResource(R.string.search)) },
             singleLine = true,
+            keyboardActions = KeyboardActions(
+                onDone = {
+                    focusManager.clearFocus()
+                }
+            ),
             modifier = Modifier.fillMaxWidth()
         )
     }

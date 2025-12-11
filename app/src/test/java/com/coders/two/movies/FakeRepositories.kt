@@ -5,6 +5,11 @@ import com.coders.two.movies.data.model.MovieResponse
 import com.coders.two.movies.data.repository.PopularMoviesRepository
 import com.coders.two.movies.data.repository.SearchRepository
 
+import com.coders.two.movies.data.db.FavoriteMovieEntity
+import com.coders.two.movies.data.repository.FavoritesRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+
 class FakePopularRepo : PopularMoviesRepository {
 
     var movies = (1..5).map {
@@ -32,7 +37,6 @@ class FakePopularRepo : PopularMoviesRepository {
 
 class FakeSearchRepo : SearchRepository {
 
-    // 🔥 THIS is the missing flag you need
     var shouldThrow: Boolean = false
 
     var movies = (1..3).map {
@@ -85,5 +89,29 @@ class FakeSearchRepo : SearchRepository {
             totalPages = 2,
             totalResults = 6
         )
+    }
+}
+
+class FakeFavoritesRepo : FavoritesRepository {
+
+    private val favorites = mutableSetOf<Int>()
+    private val favoritesFlow =
+        MutableStateFlow<List<FavoriteMovieEntity>>(emptyList())
+
+    override fun getFavorites(): Flow<List<FavoriteMovieEntity>> = favoritesFlow
+
+    override fun isFavorite(id: Int): Flow<Boolean> =
+        MutableStateFlow(favorites.contains(id))
+
+    override suspend fun toggleFavorite(movie: MovieDto) {
+        if (favorites.contains(movie.id)) {
+            favorites.remove(movie.id)
+        } else {
+            favorites.add(movie.id)
+        }
+
+        favoritesFlow.value = favorites.map {
+            FavoriteMovieEntity(id = it, title = movie.displayTitle, posterPath = movie.posterPath)
+        }
     }
 }

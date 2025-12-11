@@ -1,6 +1,9 @@
 package com.coders.two.movies.di
 
 import com.coders.two.movies.data.api.MovieApi
+import com.coders.two.movies.data.db.FavoritesDao
+import com.coders.two.movies.data.repository.FavoritesRepository
+import com.coders.two.movies.data.repository.FavoritesRepositoryImpl
 import com.coders.two.movies.data.repository.PopularMoviesRepository
 import com.coders.two.movies.data.repository.PopularMoviesRepositoryImpl
 import com.coders.two.movies.data.repository.SearchRepository
@@ -28,4 +31,8 @@ object RepositoryModule {
     @Provides
     @Singleton
     fun provideSearchRepository(api: MovieApi): SearchRepository = SearchRepositoryImpl(api)
+
+    @Provides
+    @Singleton
+    fun provideFavoriteRepository(dao: FavoritesDao): FavoritesRepository = FavoritesRepositoryImpl(dao)
 }
