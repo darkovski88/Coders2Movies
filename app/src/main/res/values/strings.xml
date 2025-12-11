@@ -2,4 +2,5 @@
     <string name="app_name">Coders2Movies</string>
     <string name="release_date">"Release date: %s"</string>
     <string name="average_rating">"Average rating: %.1f"</string>
+    <string name="search">Search</string>
 </resources>

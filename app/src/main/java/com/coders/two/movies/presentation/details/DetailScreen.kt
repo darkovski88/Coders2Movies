@@ -55,14 +55,15 @@ internal fun DetailsScreen(
                 .height(350.dp),
             model = ImageRequest.Builder(LocalContext.current).data(movie.fullPoster)
                 .crossfade(true).build(),
-            contentDescription = movie.title,
+            contentDescription = movie.displayTitle,
+            error = painterResource(R.drawable.placeholder),
             placeholder = painterResource(R.drawable.placeholder),
             contentScale = ContentScale.Crop,
         )
         HorizontalDivider(thickness = 12.dp, color = Color.Transparent)
         Text(
             modifier = Modifier.fillMaxWidth(),
-            text = movie.title,
+            text = movie.displayTitle,
             fontSize = 32.sp,
             textAlign = TextAlign.Center,
             textDecoration = TextDecoration.Underline,
@@ -73,7 +74,7 @@ internal fun DetailsScreen(
         )
         HorizontalDivider(thickness = 12.dp, color = Color.Transparent)
         IconText(
-            text = stringResource(R.string.release_date, movie.releaseDate),
+            text = stringResource(R.string.release_date, movie.displayDate),
             icon = Icons.Default.DateRange
         )
         IconText(
@@ -89,12 +90,14 @@ internal fun DetailsScreen(
 @Composable
 private fun DetailsPreview() {
     val movie = MovieDto(
-        123,
-        "Some extralong title for a movie - looks insane",
-        "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.",
-        "/1RgPyOhN4DRs225BGTlHJqCudII.jpg",
+        id = 123,
+        title = "Some extralong title for a movie - looks insane",
+        name = null,
+        overview = "Lorem Ipsum is simply dummy text of the printing and typesetting industry. Lorem Ipsum has been the industry's standard dummy text ever since the 1500s, when an unknown printer took a galley of type and scrambled it to make a type specimen book. It has survived not only five centuries, but also the leap into electronic typesetting, remaining essentially unchanged. It was popularised in the 1960s with the release of Letraset sheets containing Lorem Ipsum passages, and more recently with desktop publishing software like Aldus PageMaker including versions of Lorem Ipsum.",
+        posterPath = "/1RgPyOhN4DRs225BGTlHJqCudII.jpg",
         voteAverage = 7.61,
-        releaseDate = "2025-07-18"
+        releaseDate = "2025-07-18",
+        firstAirDate = null,
     )
     Coders2MoviesTheme {
         Surface {

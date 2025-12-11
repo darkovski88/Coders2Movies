@@ -11,4 +11,19 @@ interface MovieApi {
         @Query("api_key") apiKey: String = "0c8a4d24efe6b43ab1fb44d3e0e075ba",
         @Query("page") page: Int,
     ): MovieResponse
+
+    @GET("search/movie")
+    suspend fun searchMovies(
+        @Query("api_key") apiKey: String = "0c8a4d24efe6b43ab1fb44d3e0e075ba",
+        @Query("query") query: String,
+        @Query("page") page: Int,
+    ): MovieResponse
+
+    @GET("search/tv")
+    suspend fun searchTvShows(
+        @Query("api_key") apiKey: String = "0c8a4d24efe6b43ab1fb44d3e0e075ba",
+        @Query("query") query: String,
+        @Query("page") page: Int,
+    ): MovieResponse
+
 }

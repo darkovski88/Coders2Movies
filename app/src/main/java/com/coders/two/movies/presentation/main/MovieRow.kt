@@ -41,7 +41,8 @@ internal fun MovieRow(
                 .data(movie.posterThumb)
                 .crossfade(true)
                 .build(),
-            contentDescription = movie.title,
+            contentDescription = movie.displayTitle,
+            error = painterResource(R.drawable.placeholder),
             placeholder = painterResource(R.drawable.placeholder),
             contentScale = ContentScale.Crop,
             modifier = Modifier
@@ -50,7 +51,7 @@ internal fun MovieRow(
         VerticalDivider(thickness = 12.dp)
         Column(Modifier.weight(1f)) {
             Text(
-                movie.title,
+                movie.displayTitle,
                 fontSize = 18.sp,
                 fontWeight = FontWeight.Bold,
                 textDecoration = TextDecoration.Underline
