@@ -5,9 +5,7 @@ import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -27,7 +25,7 @@ private const val ItemsLoadThreshold = 1
 
 @Composable
 internal fun MainScreen(
-    paddingValues: PaddingValues,
+    modifier: Modifier = Modifier,
     viewModel: MainViewModel = hiltViewModel(),
     onItemClicked: (MovieDto) -> Unit
 ) {
@@ -38,11 +36,7 @@ internal fun MainScreen(
         viewModel.onIntent(MainIntent.LoadNextPage)
     }
 
-    Box(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(paddingValues)
-    ) {
+    Box(modifier = modifier.fillMaxSize()) {
         LaunchedEffect(listState) {
             snapshotFlow {
                 val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index

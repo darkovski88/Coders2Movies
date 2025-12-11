@@ -6,6 +6,7 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
 import androidx.compose.ui.Modifier
 import androidx.navigation.NavHostController
@@ -36,7 +37,9 @@ class MainActivity : ComponentActivity() {
                         startDestination = "main"
                     ) {
                         composable("main") {
-                            MainScreen(innerPadding) {
+                            MainScreen(
+                                modifier = Modifier.padding(innerPadding)
+                            ) {
                                 navController.currentBackStackEntry
                                     ?.savedStateHandle
                                     ?.set("movie", it)
@@ -45,14 +48,16 @@ class MainActivity : ComponentActivity() {
                         }
 
                         composable("detail") {
-                            // Read the movie from the previous entry's SavedStateHandle
                             val movie =
                                 navController.previousBackStackEntry
                                     ?.savedStateHandle
                                     ?.get<MovieDto>("movie")
 
                             if (movie != null) {
-                                DetailsScreen(movie = movie)
+                                DetailsScreen(
+                                    movie = movie,
+                                    modifier = Modifier.padding(innerPadding)
+                                )
                             }
                         }
                     }
