@@ -1,7 +1,7 @@
 package com.coders.two.movies.data.repository
 
 import com.coders.two.movies.data.model.MovieResponse
-import com.coders.two.movies.data.remote.MovieApi
+import com.coders.two.movies.data.api.MovieApi
 import javax.inject.Inject
 
 internal class PopularMoviesRepositoryImpl @Inject constructor(

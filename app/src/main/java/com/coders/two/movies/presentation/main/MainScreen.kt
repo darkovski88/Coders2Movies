@@ -37,8 +37,9 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.coders.two.movies.R
 import com.coders.two.movies.data.model.MovieDto
+import kotlinx.coroutines.flow.distinctUntilChanged
 
-private const val ItemsLoadThreshold = 1
+private const val ItemsLoadThreshold = 5
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -51,40 +52,56 @@ internal fun MainScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
+    var query by remember { mutableStateOf(state.query) }
+
     LaunchedEffect(Unit) {
-        viewModel.onIntent(MainIntent.LoadNextPage)
+        viewModel.onIntent(MainIntent.LoadInitial)
     }
+
     LaunchedEffect(listState) {
-        snapshotFlow {
-            val lastVisible = listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-            lastVisible == listState.layoutInfo.totalItemsCount - ItemsLoadThreshold
-        }.collect { isAtBottom ->
-            if (isAtBottom) {
-                viewModel.onIntent(MainIntent.LoadNextPage)
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: 0 }
+            .distinctUntilChanged()
+            .collect { lastVisible ->
+                val total = listState.layoutInfo.totalItemsCount
+                if (total > 0 && lastVisible >= total - ItemsLoadThreshold) {
+                    viewModel.onIntent(MainIntent.LoadNextPage)
+                }
+            }
+    }
+
+    LaunchedEffect(Unit) {
+        viewModel.events.collect { event ->
+            when (event) {
+                is MainUiEvent.ShowError ->
+                    Toast.makeText(context, event.message, Toast.LENGTH_LONG).show()
             }
         }
     }
+
     Column(modifier = modifier.fillMaxSize()) {
 
-        var query by remember { mutableStateOf("") }
-
-        SearchTopBar(query = query) {
-            query = it
-            viewModel.onIntent(MainIntent.Search(it))
-        }
+        SearchTopBar(
+            query = query,
+            onQueryChange = { newQuery ->
+                query = newQuery
+                viewModel.onIntent(MainIntent.Search(newQuery))
+            }
+        )
 
         LazyColumn(
             state = listState,
             modifier = Modifier.fillMaxSize()
         ) {
             items(items = state.movies) { movie ->
-                MovieRow(movie = movie) {
-                    onItemClicked(it)
-                }
+                MovieRow(movie = movie) { onItemClicked(it) }
             }
         }
 
-        AnimatedVisibility(state.isLoading, enter = fadeIn(), exit = fadeOut()) {
+        AnimatedVisibility(
+            visible = state.isLoading,
+            enter = fadeIn(),
+            exit = fadeOut()
+        ) {
             Box(
                 modifier = Modifier
                     .fillMaxSize()
@@ -98,13 +115,7 @@ internal fun MainScreen(
                 )
             }
         }
-
-        LaunchedEffect(state.error) {
-            if (state.error != null)
-                Toast.makeText(context, state.error, Toast.LENGTH_LONG).show()
-        }
     }
-
 }
 
 @Composable

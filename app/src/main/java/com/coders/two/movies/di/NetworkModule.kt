@@ -1,6 +1,6 @@
 package com.coders.two.movies.di
 
-import com.coders.two.movies.data.remote.MovieApi
+import com.coders.two.movies.data.api.MovieApi
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.kotlin.reflect.KotlinJsonAdapterFactory
 import dagger.Module

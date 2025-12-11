@@ -1,4 +1,4 @@
-package com.coders.two.movies.data.remote
+package com.coders.two.movies.data.api
 
 import com.coders.two.movies.data.model.MovieResponse
 import retrofit2.http.GET

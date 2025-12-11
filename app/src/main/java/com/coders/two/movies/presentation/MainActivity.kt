@@ -4,7 +4,6 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.ExperimentalSharedTransitionApi
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Scaffold
@@ -22,15 +21,17 @@ import dagger.hilt.android.AndroidEntryPoint
 @AndroidEntryPoint
 class MainActivity : ComponentActivity() {
 
-    @OptIn(ExperimentalSharedTransitionApi::class)
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        setContent {
-            val navController: NavHostController = rememberNavController()
 
+        setContent {
             Coders2MoviesTheme {
-                Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
+                val navController: NavHostController = rememberNavController()
+
+                Scaffold(
+                    modifier = Modifier.fillMaxSize()
+                ) { innerPadding ->
 
                     NavHost(
                         navController = navController,
@@ -38,13 +39,14 @@ class MainActivity : ComponentActivity() {
                     ) {
                         composable("main") {
                             MainScreen(
-                                modifier = Modifier.padding(innerPadding)
-                            ) {
-                                navController.currentBackStackEntry
-                                    ?.savedStateHandle
-                                    ?.set("movie", it)
-                                navController.navigate("detail")
-                            }
+                                modifier = Modifier.padding(innerPadding),
+                                onItemClicked = { movie ->
+                                    navController.currentBackStackEntry
+                                        ?.savedStateHandle
+                                        ?.set("movie", movie)
+                                    navController.navigate("detail")
+                                }
+                            )
                         }
 
                         composable("detail") {

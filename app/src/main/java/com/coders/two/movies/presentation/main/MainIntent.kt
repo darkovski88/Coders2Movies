@@ -1,6 +1,7 @@
 package com.coders.two.movies.presentation.main
 
-internal sealed class MainIntent {
-    object LoadNextPage : MainIntent()
-    class Search(val query: String) : MainIntent()
+sealed interface MainIntent {
+    data object LoadInitial : MainIntent
+    data object LoadNextPage : MainIntent
+    data class Search(val query: String) : MainIntent
 }
