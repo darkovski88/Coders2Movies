@@ -13,14 +13,17 @@ movies / series even when you don't have an internet connection.
 This screen **initially** loads most popular movies that are currently out there. But after you type
 in the search field you will get the results from the Movies and TvShows that match your query.
 By pressing on the heart icon on the right on each item from the list you can mark the item as your
-favourite.
+favourite.\
+<br/>
 ![Main screen](./_images/main.png)
+<br/>
 ![Main screen offline](./_images/offline.png)
 
 ### The details screen
 
 At the details screen you can read the full description of the movie, and you can see the release
 year and TMDB rating of that particular movie/series.
+<br/>
 ![Details screen](./_images/details.png)
 
 ## How to run
@@ -43,7 +46,7 @@ For this project the following tech stack has been used:
 - Async: Kotlin Coroutines & Flow
 - Persistence: Room
 - Image Loading: Coil
-- MockK and Turbine for Unit testing
+- Turbine for Unit testing
 
 ### Author
 
