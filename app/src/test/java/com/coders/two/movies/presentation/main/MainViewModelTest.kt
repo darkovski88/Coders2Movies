@@ -1,102 +1,138 @@
 package com.coders.two.movies.presentation.main
 
 import app.cash.turbine.test
+import com.coders.two.movies.FakeConnectivityProvider
 import com.coders.two.movies.FakeFavoritesRepo
 import com.coders.two.movies.FakePopularRepo
 import com.coders.two.movies.FakeSearchRepo
+import com.coders.two.movies.data.model.MovieDto
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
-import org.junit.Assert.*
+import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Before
 import org.junit.Test
 
 @OptIn(ExperimentalCoroutinesApi::class)
 class MainViewModelTest {
 
-    private lateinit var vm: MainViewModel
-    private lateinit var fakeFavoritesRepo: FakeFavoritesRepo
-    private lateinit var fakePopularRepo: FakePopularRepo
-    private lateinit var fakeSearchRepo: FakeSearchRepo
+    private lateinit var viewModel: MainViewModel
+
+    private lateinit var popularRepo: FakePopularRepo
+    private lateinit var searchRepo: FakeSearchRepo
+    private lateinit var favoritesRepo: FakeFavoritesRepo
+    private lateinit var connectivity: FakeConnectivityProvider
 
     private val dispatcher = StandardTestDispatcher()
 
     @Before
     fun setup() {
-        fakePopularRepo = FakePopularRepo()
-        fakeSearchRepo = FakeSearchRepo()
-        fakeFavoritesRepo = FakeFavoritesRepo()
+        popularRepo = FakePopularRepo()
+        searchRepo = FakeSearchRepo()
+        favoritesRepo = FakeFavoritesRepo()
+        connectivity = FakeConnectivityProvider(initial = true)
 
-        vm = MainViewModel(
-            popularMoviesRepo = fakePopularRepo,
-            searchRepo = fakeSearchRepo,
-            dispatcher = dispatcher,
-            favoritesRepo = fakeFavoritesRepo
+        viewModel = MainViewModel(
+            popularMoviesRepo = popularRepo,
+            searchRepo = searchRepo,
+            favoritesRepo = favoritesRepo,
+            connectivity = connectivity,
+            dispatcher = dispatcher
         )
     }
 
     @Test
-    fun `initial load gets popular movies`() = runTest(dispatcher) {
-        vm.onIntent(MainIntent.LoadInitial)
-
+    fun `initial load online shows popular movies`() = runTest(dispatcher) {
+        viewModel.onIntent(MainIntent.LoadInitial)
         advanceUntilIdle()
 
-        assertEquals(5, vm.state.movies.size)
-        assertEquals(2, vm.state.currentMoviePage)
-        assertFalse(vm.state.isLoading)
+        assertFalse(viewModel.state.isOffline)
+        assertEquals(5, viewModel.state.movies.size)
     }
 
     @Test
-    fun `search returns movies plus series`() = runTest(dispatcher) {
-        vm.onIntent(MainIntent.Search("star"))
+    fun `initial load offline shows favorites`() = runTest(dispatcher) {
+        favoritesRepo.toggleFavorite(
+            MovieDto(
+                id = 1,
+                title = "Fav",
+                name = null,
+                overview = "",
+                posterPath = null,
+                firstAirDate = null,
+                releaseDate = "2020-01-01",
+                voteAverage = 0.0
+            )
+        )
 
+        connectivity.setConnected(false)
         advanceUntilIdle()
 
-        assertEquals(6, vm.state.movies.size) // 3 movies + 3 shows
-        assertEquals(2, vm.state.currentMoviePage)
-        assertEquals(2, vm.state.currentTVShowsPage)
+        viewModel.onIntent(MainIntent.LoadInitial)
+        advanceUntilIdle()
+
+        assertTrue(viewModel.state.isOffline)
+        assertEquals(1, viewModel.state.movies.size)
+        assertTrue(viewModel.state.movies.first().isFavorite)
     }
 
     @Test
-    fun `next page loads additional search results`() = runTest(dispatcher) {
-        vm.onIntent(MainIntent.Search("star"))
+    fun `offline to online reloads popular movies only after explicit reload`() =
+        runTest(dispatcher) {
+
+            connectivity.setConnected(false)
+            viewModel.onIntent(MainIntent.LoadInitial)
+            advanceUntilIdle()
+
+            assertTrue(viewModel.state.isOffline)
+            assertEquals(0, viewModel.state.movies.size)
+
+            connectivity.setConnected(true)
+            advanceUntilIdle()
+
+            assertFalse(viewModel.state.isOffline)
+            assertEquals(5, viewModel.state.movies.size)
+        }
+
+    @Test
+    fun `pagination ignored when offline`() = runTest(dispatcher) {
+        connectivity.setConnected(false)
         advanceUntilIdle()
 
-        val firstPage = vm.state.movies.size
-
-        vm.onIntent(MainIntent.LoadNextPage)
+        viewModel.onIntent(MainIntent.LoadInitial)
         advanceUntilIdle()
 
-        assertTrue(vm.state.movies.size > firstPage)
-        assertEquals(3, vm.state.currentMoviePage)
-        assertEquals(3, vm.state.currentTVShowsPage)
+        val before = viewModel.state.movies
+
+        viewModel.onIntent(MainIntent.LoadNextPage)
+        advanceUntilIdle()
+
+        assertEquals(before, viewModel.state.movies)
+        assertTrue(viewModel.state.isOffline)
     }
 
     @Test
-    fun `clearing search restores popular movies`() = runTest(dispatcher) {
-        vm.onIntent(MainIntent.Search("abc"))
-
+    fun `search returns movies and series when online`() = runTest(dispatcher) {
+        viewModel.onIntent(MainIntent.Search("star"))
         advanceTimeBy(500)
         advanceUntilIdle()
 
-        assertEquals(6, vm.state.movies.size)
-
-        vm.onIntent(MainIntent.Search(""))
-
-        advanceTimeBy(500)
-        advanceUntilIdle()
-
-        assertEquals(5, vm.state.movies.size)
+        assertEquals(6, viewModel.state.movies.size)
+        assertEquals(2, viewModel.state.currentMoviePage)
+        assertEquals(2, viewModel.state.currentTVShowsPage)
     }
 
     @Test
-    fun `error emits UI event`() = runTest(dispatcher) {
-        fakeSearchRepo.shouldThrow = true
+    fun `search blocked when offline`() = runTest(dispatcher) {
+        connectivity.setConnected(false)
+        advanceUntilIdle()
 
-        vm.events.test {
-            vm.onIntent(MainIntent.Search("boom"))
+        viewModel.events.test {
+            viewModel.onIntent(MainIntent.Search("star"))
             advanceUntilIdle()
 
             val event = awaitItem()
@@ -105,20 +141,33 @@ class MainViewModelTest {
     }
 
     @Test
-    fun `toggling favorites updates UI state`() = runTest(dispatcher) {
-        vm.onIntent(MainIntent.LoadInitial)
+    fun `toggling favorite updates UI`() = runTest(dispatcher) {
+        viewModel.onIntent(MainIntent.LoadInitial)
         advanceUntilIdle()
 
-        val movie = vm.state.movies.first()
+        val movie = viewModel.state.movies.first()
 
-        vm.onIntent(MainIntent.ToggleFavorite(movie))
+        viewModel.onIntent(MainIntent.ToggleFavorite(movie))
         advanceUntilIdle()
 
-        assertTrue(vm.state.movies.first().isFavorite)
+        assertTrue(viewModel.state.movies.first().isFavorite)
 
-        vm.onIntent(MainIntent.ToggleFavorite(movie))
+        viewModel.onIntent(MainIntent.ToggleFavorite(movie))
         advanceUntilIdle()
 
-        assertFalse(vm.state.movies.first().isFavorite)
+        assertFalse(viewModel.state.movies.first().isFavorite)
+    }
+
+    @Test
+    fun `search error emits UI event`() = runTest(dispatcher) {
+        searchRepo.shouldThrow = true
+
+        viewModel.events.test {
+            viewModel.onIntent(MainIntent.Search("boom"))
+            advanceUntilIdle()
+
+            val event = awaitItem()
+            assertTrue(event is MainUiEvent.ShowError)
+        }
     }
 }

@@ -5,6 +5,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import com.coders.two.movies.core.ConnectivityProvider
+import com.coders.two.movies.data.mapper.toMovieDto
 import com.coders.two.movies.data.model.MovieDto
 import com.coders.two.movies.data.repository.FavoritesRepository
 import com.coders.two.movies.data.repository.PopularMoviesRepository
@@ -18,29 +20,33 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import javax.inject.Inject
 
 private const val FIRST_PAGE = 1
 private const val SECOND_PAGE = FIRST_PAGE + 1
 
-
 @HiltViewModel
 internal class MainViewModel @Inject constructor(
     private val popularMoviesRepo: PopularMoviesRepository,
     private val searchRepo: SearchRepository,
-    private val dispatcher: CoroutineDispatcher = Dispatchers.Main,
-    private val favoritesRepo: FavoritesRepository
+    private val favoritesRepo: FavoritesRepository,
+    private val connectivity: ConnectivityProvider,
+    private val dispatcher: CoroutineDispatcher = Dispatchers.Main
 ) : ViewModel() {
+
     private var favoriteIds: Set<Int> = emptySet()
 
     var state by mutableStateOf(MainState())
         private set
+
     private val queryFlow = MutableStateFlow("")
     private val _events = MutableSharedFlow<MainUiEvent>()
     val events = _events.asSharedFlow()
 
     init {
+        observeConnectivity()
         observeSearch()
         observeFavorites()
     }
@@ -54,21 +60,36 @@ internal class MainViewModel @Inject constructor(
         }
     }
 
-    private fun toggleFavorite(movie: MovieDto) {
+    private fun observeConnectivity() {
         viewModelScope.launch(dispatcher) {
-            favoritesRepo.toggleFavorite(movie)
-        }
-    }
+            connectivity.isConnected
+                .distinctUntilChanged()
+                .collect { connected ->
 
-    private fun applyFavoriteFlags(list: List<MovieDto>): List<MovieDto> {
-        return list.map { movie ->
-            movie.copy(isFavorite = favoriteIds.contains(movie.id))
+                    val wasOffline = state.isOffline
+                    state = state.copy(isOffline = !connected)
+
+                    when {
+                        !connected -> {
+                            loadFavoritesFallback()
+                        }
+
+                        connected && wasOffline -> {
+                            loadPopularPage(reset = true)
+                        }
+                    }
+                }
         }
     }
 
     private fun loadInitial() {
-        if (state.movies.isNotEmpty()) return
-        viewModelScope.launch(dispatcher) { loadPopularPage(reset = true) }
+        viewModelScope.launch(dispatcher) {
+            if (!connectivity.isCurrentlyConnected()) {
+                loadFavoritesFallback()
+            } else {
+                loadPopularPage(reset = true)
+            }
+        }
     }
 
     @OptIn(FlowPreview::class)
@@ -79,14 +100,21 @@ internal class MainViewModel @Inject constructor(
                 .distinctUntilChanged()
                 .collect { query ->
                     if (query.isBlank()) {
-                        loadPopularPage(reset = true)
+                        if (connectivity.isCurrentlyConnected()) {
+                            loadPopularPage(reset = true)
+                        }
                     } else {
+                        if (!connectivity.isCurrentlyConnected()) {
+                            _events.emit(
+                                MainUiEvent.ShowError("Offline – search unavailable")
+                            )
+                            return@collect
+                        }
                         searchFirstPage(query)
                     }
                 }
         }
     }
-    private fun nextPageAfterFirst() = FIRST_PAGE + 1
 
     private suspend fun searchFirstPage(query: String) {
         if (state.isLoading) return
@@ -121,35 +149,37 @@ internal class MainViewModel @Inject constructor(
             )
 
         } catch (e: Exception) {
+            e.printStackTrace()
             state = state.copy(isLoading = false, error = e.message)
-            _events.emit(MainUiEvent.ShowError(e.message ?: "Something went wrong"))
+            _events.emit(MainUiEvent.ShowError("Search failed"))
         }
     }
 
     private fun loadNextPage() {
         if (state.isLoading || state.endReached) return
+        if (!connectivity.isCurrentlyConnected()) return
 
         viewModelScope.launch(dispatcher) {
             try {
-                state = state.copy(isLoading = true, error = null)
+                state = state.copy(isLoading = true)
 
                 if (state.query.isBlank()) {
-                    val popularResp = popularMoviesRepo.getMovies(state.currentMoviePage)
-                    val merged = state.movies + popularResp.results
-                    val marked = applyFavoriteFlags(merged)
-
+                    val resp = popularMoviesRepo.getMovies(state.currentMoviePage)
                     state = state.copy(
                         isLoading = false,
-                        movies = marked,
+                        movies = applyFavoriteFlags(state.movies + resp.results),
                         currentMoviePage = state.currentMoviePage + 1,
-                        endReached = popularResp.page >= popularResp.totalPages
+                        endReached = resp.page >= resp.totalPages
                     )
                 } else {
-                    val moviesResp = searchRepo.searchMovies(state.query, state.currentMoviePage)
-                    val showsResp = searchRepo.searchSeries(state.query, state.currentTVShowsPage)
+                    val moviesResp =
+                        searchRepo.searchMovies(state.query, state.currentMoviePage)
+                    val showsResp =
+                        searchRepo.searchSeries(state.query, state.currentTVShowsPage)
 
-                    val merged = state.movies + moviesResp.results + showsResp.results
-                    val marked = applyFavoriteFlags(merged)
+                    val merged = applyFavoriteFlags(
+                        state.movies + moviesResp.results + showsResp.results
+                    )
 
                     val endReached =
                         moviesResp.page >= moviesResp.totalPages &&
@@ -157,49 +187,54 @@ internal class MainViewModel @Inject constructor(
 
                     state = state.copy(
                         isLoading = false,
-                        movies = marked,
+                        movies = merged,
                         currentMoviePage = state.currentMoviePage + 1,
                         currentTVShowsPage = state.currentTVShowsPage + 1,
                         endReached = endReached
                     )
                 }
-
             } catch (e: Exception) {
-                state = state.copy(isLoading = false, error = e.message)
-                _events.emit(MainUiEvent.ShowError(e.message ?: "Unknown error"))
+                e.printStackTrace()
+                state = state.copy(isLoading = false)
+                _events.emit(MainUiEvent.ShowError("Loading failed"))
             }
         }
     }
 
     private suspend fun loadPopularPage(reset: Boolean) {
-        if (state.isLoading) return
-
         try {
-            state = if (reset) MainState(isLoading = true)
-            else state.copy(isLoading = true, error = null)
-
-            val page = if (reset) 1 else state.currentMoviePage
+            val page = if (reset) FIRST_PAGE else state.currentMoviePage
             val resp = popularMoviesRepo.getMovies(page)
 
             val merged =
                 if (reset) resp.results
                 else state.movies + resp.results
 
-            val marked = applyFavoriteFlags(merged)
-
             state = state.copy(
                 isLoading = false,
-                movies = marked,
-                currentMoviePage = if (reset) SECOND_PAGE else nextPageAfterFirst(),
+                movies = applyFavoriteFlags(merged),
+                currentMoviePage = if (reset) SECOND_PAGE else state.currentMoviePage + 1,
                 currentTVShowsPage = 1,
                 query = "",
                 endReached = resp.page >= resp.totalPages
             )
-
         } catch (e: Exception) {
-            state = state.copy(isLoading = false, error = e.message)
-            _events.emit(MainUiEvent.ShowError(e.message ?: "Something went wrong"))
+            e.printStackTrace()
+            loadFavoritesFallback()
         }
+    }
+
+    private suspend fun loadFavoritesFallback() {
+        val favorites = favoritesRepo.getFavorites().first()
+
+        state = state.copy(
+            isLoading = false,
+            isOffline = true,
+            movies = favorites.map { it.toMovieDto() },
+            query = "",
+            endReached = true,
+            error = "Offline – showing favorites"
+        )
     }
 
     private fun observeFavorites() {
@@ -212,6 +247,15 @@ internal class MainViewModel @Inject constructor(
             }
         }
     }
+
+    private fun toggleFavorite(movie: MovieDto) {
+        viewModelScope.launch(dispatcher) {
+            favoritesRepo.toggleFavorite(movie)
+        }
+    }
+
+    private fun applyFavoriteFlags(list: List<MovieDto>): List<MovieDto> =
+        list.map { it.copy(isFavorite = favoriteIds.contains(it.id)) }
 }
 
 sealed interface MainUiEvent {

@@ -9,5 +9,6 @@ internal data class MainState(
     val currentMoviePage: Int = 1,
     val currentTVShowsPage: Int = 1,
     val endReached: Boolean = false,
-    val error: String? = null
+    val error: String? = null,
+    val isOffline: Boolean = false
 )

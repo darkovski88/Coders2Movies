@@ -25,16 +25,13 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.navigation.compose.hiltViewModel
 import com.coders.two.movies.R
@@ -55,7 +52,7 @@ internal fun MainScreen(
     val listState = rememberLazyListState()
     val context = LocalContext.current
 
-    var query by remember { mutableStateOf(state.query) }
+    val query = state.query
 
     LaunchedEffect(Unit) {
         viewModel.onIntent(MainIntent.LoadInitial)
@@ -66,7 +63,8 @@ internal fun MainScreen(
             .distinctUntilChanged()
             .collect { lastVisible ->
                 val total = listState.layoutInfo.totalItemsCount
-                if (total > 0 && lastVisible >= total - ItemsLoadThreshold) {
+                if (!state.isOffline && total > 0 && lastVisible >= total - ItemsLoadThreshold
+                ) {
                     viewModel.onIntent(MainIntent.LoadNextPage)
                 }
             }
@@ -81,29 +79,30 @@ internal fun MainScreen(
         }
     }
 
-    Column(modifier = modifier.fillMaxSize()) {
+    Box(modifier = modifier.fillMaxSize()) {
+        Column(modifier = Modifier.fillMaxSize()) {
+            SearchTopBar(
+                query = query,
+                enabled = !state.isOffline,
+                onQueryChange = {
+                    viewModel.onIntent(MainIntent.Search(it))
+                }
+            )
 
-        SearchTopBar(
-            query = query,
-            onQueryChange = { newQuery ->
-                query = newQuery
-                viewModel.onIntent(MainIntent.Search(newQuery))
-            }
-        )
-
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize()
-        ) {
-            items(items = state.movies) { movie ->
-                MovieRow(
-                    movie = movie,
-                    onFavorite = {
-                        viewModel.onIntent(MainIntent.ToggleFavorite(it))
-                    }) {
-                    onItemClicked(
-                        it
-                    )
+            LazyColumn(
+                state = listState,
+                modifier = Modifier.fillMaxSize()
+            ) {
+                items(items = state.movies) { movie ->
+                    MovieRow(
+                        movie = movie,
+                        onFavorite = {
+                            viewModel.onIntent(MainIntent.ToggleFavorite(it))
+                        }) {
+                        onItemClicked(
+                            it
+                        )
+                    }
                 }
             }
         }
@@ -132,6 +131,7 @@ internal fun MainScreen(
 @Composable
 fun SearchTopBar(
     query: String,
+    enabled: Boolean,
     onQueryChange: (String) -> Unit
 ) {
     val focusManager = LocalFocusManager.current
@@ -144,18 +144,23 @@ fun SearchTopBar(
         TextField(
             value = query,
             onValueChange = onQueryChange,
+            enabled = enabled,
             leadingIcon = {
                 Icon(
                     imageVector = Icons.Default.Search,
                     contentDescription = stringResource(R.string.search)
                 )
             },
-            placeholder = { Text(stringResource(R.string.search)) },
+            placeholder = {
+                Text(
+                    text = stringResource(if (enabled) R.string.search else R.string.search_not_available_showing_favorites),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis
+                )
+            },
             singleLine = true,
             keyboardActions = KeyboardActions(
-                onDone = {
-                    focusManager.clearFocus()
-                }
+                onDone = { focusManager.clearFocus() }
             ),
             modifier = Modifier.fillMaxWidth()
         )

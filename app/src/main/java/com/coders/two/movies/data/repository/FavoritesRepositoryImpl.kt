@@ -17,7 +17,12 @@ class FavoritesRepositoryImpl @Inject constructor(
         val entity = FavoriteMovieEntity(
             id = movie.id,
             title = movie.displayTitle,
-            posterPath = movie.posterPath
+            posterPath = movie.posterPath,
+            name = movie.name,
+            overview = movie.overview,
+            firstAirDate = movie.firstAirDate,
+            releaseDate = movie.releaseDate,
+            voteAverage = movie.voteAverage
         )
 
         val isFav = dao.isFavorite(movie.id).first()
