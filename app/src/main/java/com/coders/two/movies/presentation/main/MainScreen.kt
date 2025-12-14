@@ -131,7 +131,7 @@ internal fun MainScreen(
 }
 
 @Composable
-fun SearchTopBar(
+private fun SearchTopBar(
     query: String,
     enabled: Boolean,
     onQueryChange: (String) -> Unit
