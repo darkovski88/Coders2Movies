@@ -15,6 +15,8 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asSharedFlow
@@ -56,7 +58,10 @@ internal class MainViewModel @Inject constructor(
             MainIntent.LoadInitial -> loadInitial()
             MainIntent.LoadNextPage -> loadNextPage()
             is MainIntent.ToggleFavorite -> toggleFavorite(intent.movie)
-            is MainIntent.Search -> queryFlow.value = intent.query
+            is MainIntent.Search -> {
+                state = state.copy(query = intent.query)
+                queryFlow.value = intent.query
+            }
         }
     }
 
@@ -119,19 +124,23 @@ internal class MainViewModel @Inject constructor(
     private suspend fun searchFirstPage(query: String) {
         if (state.isLoading) return
 
-        try {
-            state = state.copy(
-                isLoading = true,
-                query = query,
-                movies = emptyList(),
-                currentMoviePage = 1,
-                currentTVShowsPage = 1,
-                endReached = false,
-                error = null
-            )
+        state = state.copy(
+            isLoading = true,
+            query = query,
+            movies = emptyList(),
+            currentMoviePage = 1,
+            currentTVShowsPage = 1,
+            endReached = false,
+            error = null
+        )
 
-            val moviesResp = searchRepo.searchMovies(query, 1)
-            val showsResp = searchRepo.searchSeries(query, 1)
+        try {
+            val (moviesResp, showsResp) = coroutineScope {
+                val moviesDeferred = async { searchRepo.searchMovies(query, 1) }
+                val showsDeferred = async { searchRepo.searchSeries(query, 1) }
+
+                moviesDeferred.await() to showsDeferred.await()
+            }
 
             val combined = moviesResp.results + showsResp.results
             val marked = applyFavoriteFlags(combined)
@@ -143,8 +152,8 @@ internal class MainViewModel @Inject constructor(
             state = state.copy(
                 isLoading = false,
                 movies = marked,
-                currentMoviePage = 2,
-                currentTVShowsPage = 2,
+                currentMoviePage = moviesResp.page + 1,
+                currentTVShowsPage = showsResp.page + 1,
                 endReached = endReached
             )
 
@@ -154,6 +163,7 @@ internal class MainViewModel @Inject constructor(
             _events.emit(MainUiEvent.ShowError("Search failed"))
         }
     }
+
 
     private fun loadNextPage() {
         if (state.isLoading || state.endReached) return
@@ -215,7 +225,6 @@ internal class MainViewModel @Inject constructor(
                 movies = applyFavoriteFlags(merged),
                 currentMoviePage = if (reset) SECOND_PAGE else state.currentMoviePage + 1,
                 currentTVShowsPage = 1,
-                query = "",
                 endReached = resp.page >= resp.totalPages
             )
         } catch (e: Exception) {

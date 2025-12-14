@@ -54,8 +54,10 @@ internal fun MainScreen(
 
     val query = state.query
 
-    LaunchedEffect(Unit) {
-        viewModel.onIntent(MainIntent.LoadInitial)
+    LaunchedEffect(true) {
+        if (state.movies.isEmpty()) {
+            viewModel.onIntent(MainIntent.LoadInitial)
+        }
     }
 
     LaunchedEffect(listState) {
